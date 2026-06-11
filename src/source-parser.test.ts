@@ -72,6 +72,53 @@ describe('source-parser', () => {
     });
   });
 
+  describe('Baidu iCode Support', () => {
+    it('parses baidu icode URL with tree and path', () => {
+      const result = parseSource(
+        'https://console.cloud.baidu-int.com/devops/icode/repos/baidu/personal-code/dinghchenguang-skills/tree/master/skills/test'
+      );
+      expect(result).toEqual({
+        type: 'git',
+        url: 'ssh://icode.baidu.com:8235/baidu/personal-code/dinghchenguang-skills',
+        ref: 'master',
+        subpath: 'skills/test',
+      });
+    });
+
+    it('parses baidu icode URL with tree only', () => {
+      const result = parseSource(
+        'https://console.cloud.baidu-int.com/devops/icode/repos/baidu/personal-code/dinghchenguang-skills/tree/master'
+      );
+      expect(result).toEqual({
+        type: 'git',
+        url: 'ssh://icode.baidu.com:8235/baidu/personal-code/dinghchenguang-skills',
+        ref: 'master',
+      });
+    });
+
+    it('parses baidu icode URL without tree', () => {
+      const result = parseSource(
+        'https://console.cloud.baidu-int.com/devops/icode/repos/baidu/personal-code/dinghchenguang-skills'
+      );
+      expect(result).toEqual({
+        type: 'git',
+        url: 'ssh://icode.baidu.com:8235/baidu/personal-code/dinghchenguang-skills',
+      });
+    });
+
+    it('parses baidu icode URL with simple owner/repo format', () => {
+      const result = parseSource(
+        'https://console.cloud.baidu-int.com/devops/icode/repos/myorg/myrepo/tree/main/skills/demo'
+      );
+      expect(result).toEqual({
+        type: 'git',
+        url: 'ssh://icode.baidu.com:8235/myorg/myrepo',
+        ref: 'main',
+        subpath: 'skills/demo',
+      });
+    });
+  });
+
   describe('Existing GitHub Support', () => {
     it('parses github shorthand', () => {
       const result = parseSource('vercel-labs/agent-skills');

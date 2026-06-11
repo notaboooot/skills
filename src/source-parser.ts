@@ -137,7 +137,7 @@ function isLocalPath(input: string): boolean {
 
 /**
  * Parse a source string into a structured format
- * Supports: local paths, GitHub URLs, GitLab URLs, GitHub shorthand, well-known URLs, and direct git URLs
+ * Supports: local paths, GitHub URLs, GitLab URLs, Baidu iCode URLs, GitHub shorthand, well-known URLs, and direct git URLs
  */
 // Source aliases: map common shorthand to canonical source
 const SOURCE_ALIASES: Record<string, string> = {
@@ -363,6 +363,48 @@ export function parseSource(input: string): ParsedSource {
     }
   }
 
+  // Baidu iCode URL with path: https://console.cloud.baidu-int.com/devops/icode/repos/owner/group/repo/tree/branch/path
+  // Supports both /repos/owner/repo (2 segments) and /repos/owner/group/repo (3 segments) formats
+  // Converts to SSH URL for authentication: ssh://user@icode.baidu.com:8235/owner/group/repo
+  const baiduIcodeTreeWithPathMatch = input.match(
+    /console\.cloud\.baidu-int\.com\/devops\/icode\/repos\/(.+?)\/tree\/([^/]+)\/(.+)/
+  );
+  if (baiduIcodeTreeWithPathMatch) {
+    const [, repoPath, ref, subpath] = baiduIcodeTreeWithPathMatch;
+    return {
+      type: 'git',
+      url: `ssh://icode.baidu.com:8235/${repoPath}`,
+      ref: ref || fragmentRef,
+      subpath: subpath ? sanitizeSubpath(subpath) : subpath,
+    };
+  }
+
+  // Baidu iCode URL with branch only: https://console.cloud.baidu-int.com/devops/icode/repos/owner/group/repo/tree/branch
+  const baiduIcodeTreeMatch = input.match(
+    /console\.cloud\.baidu-int\.com\/devops\/icode\/repos\/(.+?)\/tree\/([^/]+)$/
+  );
+  if (baiduIcodeTreeMatch) {
+    const [, repoPath, ref] = baiduIcodeTreeMatch;
+    return {
+      type: 'git',
+      url: `ssh://icode.baidu.com:8235/${repoPath}`,
+      ref: ref || fragmentRef,
+    };
+  }
+
+  // Baidu iCode URL: https://console.cloud.baidu-int.com/devops/icode/repos/owner/group/repo
+  const baiduIcodeRepoMatch = input.match(
+    /console\.cloud\.baidu-int\.com\/devops\/icode\/repos\/([^?]+?)(?:\/)?$/
+  );
+  if (baiduIcodeRepoMatch && !baiduIcodeRepoMatch[1]!.includes('/tree/')) {
+    const repoPath = baiduIcodeRepoMatch[1]!.replace(/\.git$/, '');
+    return {
+      type: 'git',
+      url: `ssh://icode.baidu.com:8235/${repoPath}`,
+      ...(fragmentRef ? { ref: fragmentRef } : {}),
+    };
+  }
+
   // GitHub shorthand: owner/repo, owner/repo/path/to/skill, or owner/repo@skill-name
   // Exclude paths that start with . or / to avoid matching local paths
   // First check for @skill syntax: owner/repo@skill-name
@@ -421,7 +463,7 @@ function isWellKnownUrl(input: string): boolean {
     const parsed = new URL(input);
 
     // Exclude known git hosts that have their own handling
-    const excludedHosts = ['github.com', 'gitlab.com', 'raw.githubusercontent.com'];
+    const excludedHosts = ['github.com', 'gitlab.com', 'raw.githubusercontent.com', 'console.cloud.baidu-int.com'];
     if (excludedHosts.includes(parsed.hostname)) {
       return false;
     }

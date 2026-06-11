@@ -747,3 +747,22 @@ export function getNonUniversalAgents(): AgentType[] {
 export function isUniversalAgent(type: AgentType): boolean {
   return agents[type].skillsDir === '.agents/skills';
 }
+
+/**
+ * Get the canonical skills directory for an agent type.
+ * For universal agents, returns .agents/skills.
+ * For non-universal agents (like claude-code), returns their specific directory.
+ */
+export function getCanonicalSkillsDirForAgent(agentType: AgentType, global: boolean, cwd?: string): string {
+  const agent = agents[agentType];
+  const baseDir = global ? homedir() : cwd || process.cwd();
+
+  if (global) {
+    if (agent.globalSkillsDir === undefined) {
+      return join(baseDir, agent.skillsDir);
+    }
+    return agent.globalSkillsDir;
+  }
+
+  return join(baseDir, agent.skillsDir);
+}
